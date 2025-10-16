@@ -20364,7 +20364,7 @@ export interface components {
              *     ## Attribution
              *
              *     This Code of Conduct is adapted from the [Contributor Covenant](http://contributor-covenant.org), version 1.4, available at [http://contributor-covenant.org/version/1/4](http://contributor-covenant.org/version/1/4/).
-             *      */
+             */
             body?: string;
             /** Format: uri */
             html_url: string | null;
@@ -21740,7 +21740,7 @@ export interface components {
              *     *.exe
              *     *.out
              *     *.app
-             *      */
+             */
             source: string;
         };
         /**
@@ -21830,7 +21830,7 @@ export interface components {
              *     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
              *     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
              *     SOFTWARE.
-             *      */
+             */
             body: string;
             /** @example true */
             featured: boolean;
@@ -87756,7 +87756,7 @@ export interface components {
         /** @description A comma-separated list of rule targets to filter by.
          *     If provided, only rulesets that apply to the specified targets will be returned.
          *     For example, `branch,tag,push`.
-         *      */
+         */
         "ruleset-targets": string;
         /** @description The name of the ref. Cannot contain wildcard characters. Optionally prefix with `refs/heads/` to limit to branches or `refs/tags/` to limit to tags. Omit the prefix to search across all refs. When specified, only rule evaluations triggered for this ref will be returned. */
         "ref-in-query": string;
@@ -98281,7 +98281,7 @@ export interface operations {
                 /** @description A comma-separated list of rule targets to filter by.
                  *     If provided, only rulesets that apply to the specified targets will be returned.
                  *     For example, `branch,tag,push`.
-                 *      */
+                 */
                 targets?: components["parameters"]["ruleset-targets"];
             };
             header?: never;
@@ -115670,7 +115670,7 @@ export interface operations {
                 /** @description A comma-separated list of rule targets to filter by.
                  *     If provided, only rulesets that apply to the specified targets will be returned.
                  *     For example, `branch,tag,push`.
-                 *      */
+                 */
                 targets?: components["parameters"]["ruleset-targets"];
             };
             header?: never;
