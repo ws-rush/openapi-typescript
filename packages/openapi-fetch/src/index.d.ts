@@ -160,6 +160,10 @@ type MiddlewareOnError = (
 ) => void | Response | Error | Promise<void | Response | Error>;
 
 export type Middleware =
+  | ((
+      context: MiddlewareCallbackParams,
+      next: () => Promise<Response>,
+    ) => Promise<Response>)
   | {
       onRequest: MiddlewareOnRequest;
       onResponse?: MiddlewareOnResponse;

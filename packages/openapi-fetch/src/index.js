@@ -126,108 +126,97 @@ export default function createClient(clientOptions) {
       }
     }
 
-    if (finalMiddlewares.length) {
-      id = randomID();
-
-      // middleware (request)
-      options = Object.freeze({
+    if (finalMiddlewares.length > 0) {
+      const id = randomID();
+      const options = Object.freeze({
         baseUrl: finalBaseUrl,
         fetch,
         parseAs,
         querySerializer,
         bodySerializer,
       });
-      for (const m of finalMiddlewares) {
-        if (m && typeof m === "object" && typeof m.onRequest === "function") {
-          const result = await m.onRequest({
-            request,
-            schemaPath,
-            params,
-            options,
-            id,
-          });
-          if (result) {
-            if (result instanceof Request) {
-              request = result;
-            } else if (result instanceof Response) {
-              response = result;
-              break;
-            } else {
-              throw new Error("onRequest: must return new Request() or Response() when modifying the request");
-            }
-          }
-        }
-      }
-    }
+      const context = {
+        request,
+        schemaPath,
+        params,
+        options,
+        id,
+      };
 
-    if (!response) {
-      // fetch!
-      try {
-        response = await fetch(request, requestInitExt);
-      } catch (error) {
-        let errorAfterMiddleware = error;
-        // middleware (error)
-        // execute in reverse-array order (first priority gets last transform)
-        if (finalMiddlewares.length) {
-          for (let i = finalMiddlewares.length - 1; i >= 0; i--) {
-            const m = finalMiddlewares[i];
-            if (m && typeof m === "object" && typeof m.onError === "function") {
-              const result = await m.onError({
-                request,
-                error: errorAfterMiddleware,
-                schemaPath,
-                params,
-                options,
-                id,
-              });
+      const executeFetch = () => fetch(context.request, requestInitExt);
+
+      const runMiddleware = async (middlewares, core) => {
+        const dispatch = async (index) => {
+          if (index >= middlewares.length) {
+            return core();
+          }
+          const middleware = middlewares[index];
+          const next = () => dispatch(index + 1);
+
+          if (typeof middleware === "function") {
+            return middleware(context, next);
+          }
+
+          if (typeof middleware === "object") {
+            let res;
+            let error;
+
+            if (middleware.onRequest) {
+              const result = await middleware.onRequest(context);
               if (result) {
-                // if error is handled by returning a response, skip remaining middleware
+                if (result instanceof Request) {
+                  context.request = result;
+                } else if (result instanceof Response) {
+                  return result;
+                } else {
+                  throw new Error("onRequest: must return new Request() or Response() when modifying the request");
+                }
+              }
+            }
+
+            try {
+              res = await next();
+            } catch (err) {
+              error = err;
+            }
+
+            if (error) {
+              if (middleware.onError) {
+                const result = await middleware.onError({ ...context, error });
                 if (result instanceof Response) {
-                  errorAfterMiddleware = undefined;
-                  response = result;
-                  break;
+                  return result;
                 }
-
                 if (result instanceof Error) {
-                  errorAfterMiddleware = result;
-                  continue;
+                  throw result;
                 }
+                if (result) {
+                  throw new Error("onError: must return new Response() or instance of Error");
+                }
+              }
+              throw error;
+            }
 
-                throw new Error("onError: must return new Response() or instance of Error");
+            if (res && middleware.onResponse) {
+              const result = await middleware.onResponse({ ...context, response: res });
+              if (result) {
+                if (!(result instanceof Response)) {
+                  throw new Error("onResponse: must return new Response() when modifying the response");
+                }
+                return result;
               }
             }
-          }
-        }
 
-        // rethrow error if not handled by middleware
-        if (errorAfterMiddleware) {
-          throw errorAfterMiddleware;
-        }
-      }
-
-      // middleware (response)
-      // execute in reverse-array order (first priority gets last transform)
-      if (finalMiddlewares.length) {
-        for (let i = finalMiddlewares.length - 1; i >= 0; i--) {
-          const m = finalMiddlewares[i];
-          if (m && typeof m === "object" && typeof m.onResponse === "function") {
-            const result = await m.onResponse({
-              request,
-              response,
-              schemaPath,
-              params,
-              options,
-              id,
-            });
-            if (result) {
-              if (!(result instanceof Response)) {
-                throw new Error("onResponse: must return new Response() when modifying the response");
-              }
-              response = result;
-            }
+            return res;
           }
-        }
-      }
+
+          return next();
+        };
+        return dispatch(0);
+      };
+
+      response = await runMiddleware(finalMiddlewares, executeFetch);
+    } else {
+      response = await fetch(request, requestInitExt);
     }
 
     // handle empty content
@@ -296,8 +285,13 @@ export default function createClient(clientOptions) {
         if (!m) {
           continue;
         }
-        if (typeof m !== "object" || !("onRequest" in m || "onResponse" in m || "onError" in m)) {
-          throw new Error("Middleware must be an object with one of `onRequest()`, `onResponse() or `onError()`");
+        if (
+          typeof m !== "function" &&
+          (typeof m !== "object" || !("onRequest" in m || "onResponse" in m || "onError" in m))
+        ) {
+          throw new Error(
+            "Middleware must be a function or an object with one of `onRequest()`, `onResponse() or `onError()`",
+          );
         }
         globalMiddlewares.push(m);
       }
