@@ -117,6 +117,81 @@ const { data, error } = await client.PUT("/blogposts", {
 2. You pass in your desired `path` to `GET()`, `PUT()`, etc.
 3. TypeScript takes over the rest and returns helpful errors for anything missing or invalid
 
+## Middleware
+
+openapi-fetch supports middleware to intercept and modify requests and responses. This is useful for tasks like adding authentication tokens, logging, or handling token refresh.
+
+There are two ways to write middleware:
+
+### Function-based Middleware (Recommended)
+
+This pattern is recommended for most use cases, especially for asynchronous operations like token refresh. It uses a `next()` function to pass control to the next middleware in the chain.
+
+```ts
+import createClient from "openapi-fetch";
+import type { paths } from "./my-openapi-3-schema";
+
+const client = createClient<paths>({ baseUrl: "https://myapi.dev/v1/" });
+
+// Mock token store
+let token = "expired-token";
+
+client.use(async (context, next) => {
+  // Check if the token is expired (simplified for this example)
+  if (token === "expired-token") {
+    console.log("Token expired, refreshing...");
+    // In a real app, you would make a request to your auth server
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+    token = "new-valid-token";
+    console.log("Token refreshed!");
+  }
+
+  // Add the token to the request header
+  context.request.headers.set("Authorization", `Bearer ${token}`);
+
+  // Continue to the next middleware or the fetch call
+  const response = await next();
+
+  // You can also inspect the response
+  if (response.status === 401) {
+    console.log("Server responded with 401, maybe the refresh token is also expired.");
+    // Here you might want to redirect to a login page
+  }
+
+  return response;
+});
+
+const { data, error } = await client.GET("/user");
+```
+
+### Object-based Middleware
+
+This pattern is useful for simple, synchronous operations. It uses an object with `onRequest`, `onResponse`, and `onError` hooks.
+
+```ts
+import createClient from "openapi-fetch";
+import type { paths } from "./my-openapi-3-schema";
+
+const client = createClient<paths>({ baseUrl: "https://myapi.dev/v1/" });
+
+client.use({
+  async onRequest(context) {
+    const token = localStorage.getItem("token");
+    if (token) {
+      context.request.headers.set("Authorization", `Bearer ${token}`);
+    }
+    return context.request;
+  },
+  async onResponse(context) {
+    if (context.response.status === 401) {
+      // a 401 error was hit; maybe redirect to login
+      location.href = "/login";
+    }
+    return context.response;
+  },
+});
+```
+
 ## 📓 Docs
 
 [View Docs](https://openapi-ts.dev/openapi-fetch/)
