@@ -4,7 +4,7 @@ const PATH_PARAM_RE = /\{[^{}]+\}/g;
 const supportsRequestInitExt = () => {
   return (
     typeof process === "object" &&
-    Number.parseInt(process?.versions?.node?.substring(0, 2)) >= 18 &&
+    Number.parseInt(process?.versions?.node?.substring(0, 2), 10) >= 18 &&
     process.versions.undici
   );
 };
@@ -111,9 +111,9 @@ export default function createClient(clientOptions) {
       headers: finalHeaders,
     };
 
-    let id;
-    let options;
-    let request = new Request(
+    let _id;
+    let _options;
+    const request = new Request(
       createFinalURL(schemaPath, { baseUrl: finalBaseUrl, params, querySerializer }),
       requestInit,
     );
